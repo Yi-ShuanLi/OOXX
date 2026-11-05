@@ -24,10 +24,8 @@ namespace OOXX
         private void Choose_Click(object sender, EventArgs e)
         {
             Button button = sender as Button;
-            string[] buttonTag = button.Tag.ToString().Split(',');
-            int[] OOAddress = buttonTag.Select(x => int.Parse(x)).ToArray();
-            //int currentWrite = Oo == true ? 1 : 2;
-            //string currentText = Oo == true ? "O" : "X";
+            string[] OOButtonTag = button.Tag.ToString().Split(',');
+            int[] OOAddress = OOButtonTag.Select(x => int.Parse(x)).ToArray();
             if (Record[OOAddress[0], OOAddress[1]] != 0)
             {
                 return;
@@ -50,17 +48,7 @@ namespace OOXX
                 Record = new int[3, 3];
                 return;
             }
-
-            List<Button> notSelectedButton = this.Controls.OfType<Button>().Where(x => x.Text == "").ToList();
-            List<int> notSelectedScore = CalculateNotSelectedButton();
-            Random random = new Random(Guid.NewGuid().GetHashCode());
-            int index = random.Next(0, notSelectedButton.Count);
-            notSelectedButton[index].ForeColor = Color.Red;
-            notSelectedButton[index].Text = "X";
-            string[] XXButtonTag = notSelectedButton[index].Tag.ToString().Split(',');
-            int[] XXButtonAddress = XXButtonTag.Select(x => int.Parse(x)).ToArray();
-            Record[XXButtonAddress[0], XXButtonAddress[1]] = 2;
-
+            ComputerPlay();
             if (CheckWin(2))
             {
                 MessageBox.Show($"X贏了!!");
@@ -77,11 +65,138 @@ namespace OOXX
             }
 
         }
-
-        private List<int> CalculateNotSelectedButton()
+        /// <summary>
+        /// 電腦XX劃格子，在所有目前空的格子裡，去模擬把XX劃下去
+        /// 因為XX贏所得的分數是-100，所以是設定9999最大去找以XX為立場的最小值。
+        /// </summary>
+        private void ComputerPlay()
         {
+            int bestScore = 9999;
+            int bestRow = 0;
+            int bestCol = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    if (Record[i, j] == 0)
+                    {
+                        Record[i, j] = 2;
+                        int scroe = MiniMaxFindMax(i, j); // 換玩家跑，所有還沒選的格子，
+                                                          // 每格丟下去評分，取最大
+                        Record[i, j] = 0;
+                        if (scroe < bestScore)
+                        {
+                            bestScore = scroe;
+                            bestRow = i;
+                            bestCol = j;
+                        }
+                    }
+                }
+            }
+            Button XXButton = this.Controls.OfType<Button>().FirstOrDefault(x => x.Tag.ToString() == $"{bestRow},{bestCol}");
+            XXButton.Text = "X";
+            XXButton.ForeColor = Color.Red;
+            Record[bestRow, bestCol] = 2;
         }
 
+        /// <summary>
+        /// 電腦模擬玩家OO劃框，玩家OO立場 return 值越大越好
+        /// 因為OO贏是+100，所以設定-9999去找最大值。
+        /// </summary>
+        /// <param name="rowIndex"></param>
+        /// <param name="colIndex"></param>
+        /// <returns></returns>
+        private int MiniMaxFindMax(int rowIndex, int colIndex)
+        {
+            if (CheckWin(1)) // O是1
+            {
+                return 100;
+            }
+
+            if (CheckWin(2)) // X是2
+            {
+                return -100;
+            }
+            if (CheckTie()) //平手
+            {
+                return 0;
+            }
+
+            int bestScord = -9999; //因為 MiniMaxFindMin 會返回最小
+            int bestRow = 0;
+            int bestCol = 0;
+
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    if (Record[i, j] == 0)
+                    {
+                        Record[i, j] = 1;
+                        int score = MiniMaxFindMin(i, j);  // 下一步電腦預測玩家user的框
+                                                           // 
+                        Record[i, j] = 0;
+                        if (score > bestScord)
+                        {
+                            bestScord = score;
+                            bestRow = i;
+                            bestCol = j;
+                        }
+                    }
+                }
+            }
+            return bestScord;
+        }
+
+        /// <summary>
+        /// 電腦XX劃框，因為XX贏是-100，所以用9999去找最小值
+        /// </summary>
+        /// <param name="row"></param>
+        /// <param name="col"></param>
+        /// <returns></returns>
+
+        private int MiniMaxFindMin(int row, int col)
+        {
+            if (CheckWin(1)) // O是1
+            {
+                return 100;
+            }
+
+            if (CheckWin(2)) // X是2
+            {
+                return -100;
+            }
+            if (CheckTie()) //平手
+            {
+                return 0;
+            }
+
+            int worseScore = 9999;
+            int bestRow = 0;
+            int bestCol = 0;
+
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    if (Record[i, j] == 0)
+                    {
+                        Record[i, j] = 2;
+                        int score = MiniMaxFindMax(i, j); // 電腦模擬玩家OO劃框
+                                                          // 
+                        Record[i, j] = 0;
+                        if (score < worseScore)
+                        {
+                            worseScore = score;
+                            bestRow = i;
+                            bestCol = j;
+                        }
+                    }
+                }
+            }
+            return worseScore;
+
+        }
         private bool CheckWin(int writeNum)
         {
             int row = Record.GetLength(0);
